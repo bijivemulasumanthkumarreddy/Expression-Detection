@@ -1,45 +1,35 @@
-
 import streamlit as st
-import numpy as np
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import cv2
+import numpy as np
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.image import img_to_array
 
-# Load model
+# Load your trained model
 model = load_model('emotion_model.h5')
 labels = ['Angry', 'Happy', 'Neutral', 'Sad']
 
-# Webcam input
-st.title("Real-Time Emotion Detection")
-run = st.checkbox('Start Camera')
+class VideoTransformer(VideoTransformerBase):
+    def transform(self, frame):
+        if frame is None:
+            return None
 
-FRAME_WINDOW = st.image([])
+        img = frame.to_ndarray(format="bgr24")
 
-cap = cv2.VideoCapture(0)
+        # Preprocess the frame for prediction
+        face_img = cv2.resize(img, (224, 224))
+        face_arr = face_img / 255.0
+        face_arr = np.expand_dims(face_arr, axis=0)
 
-def is_live_face(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    return laplacian_var > 100
-
-while run:
-    ret, frame = cap.read()
-    if not ret:
-        st.warning("Webcam not accessible.")
-        break
-
-    face_img = cv2.resize(frame, (224, 224))
-    face_arr = img_to_array(face_img) / 255.0
-    face_arr = np.expand_dims(face_arr, axis=0)
-
-    if is_live_face(frame):
+        # Predict emotion
         preds = model.predict(face_arr)[0]
         label = labels[np.argmax(preds)]
-    else:
-        label = "Spoofing Detected!"
 
-    frame = cv2.putText(frame, label, (20, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    FRAME_WINDOW.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        # Display label on the frame
+        cv2.putText(img, label, (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-cap.release()
+        return img
+
+st.title("Real-Time Emotion Detection")
+
+webrtc_streamer(key="example", video_transformer_factory=VideoTransformer)
