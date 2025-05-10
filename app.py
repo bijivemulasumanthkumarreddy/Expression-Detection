@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+import av
 import cv2
 import numpy as np
 from tensorflow.keras.models import load_model
@@ -10,9 +11,6 @@ labels = ['Angry', 'Happy', 'Neutral', 'Sad']
 
 class VideoTransformer(VideoTransformerBase):
     def transform(self, frame):
-        if frame is None:
-            return None
-
         img = frame.to_ndarray(format="bgr24")
 
         # Preprocess the frame for prediction
